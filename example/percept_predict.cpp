@@ -6,11 +6,21 @@
 #define TBLSIZE 512
 #define MAX_CTR 8
 #define THRESH 4
+#define VICTIM_QUEUE_SIZE LLC_WAYS/4
 
 uint32_t lru[LLC_SETS][LLC_WAYS];
 bool zeroReuse[LLC_SETS][LLC_WAYS];
 int32_t predictions[LLC_SETS][LLC_WAYS];
 int feat1[TBLSIZE];
+
+struct victqueue_entry
+{
+    int tag;
+    int pos;
+    int hash1;
+};
+
+victqueue_entry vict_queue[LLC_SETS][VICTIM_QUEUE_SIZE];
 
 
 // initialize replacement state
@@ -24,6 +34,12 @@ void InitReplacementState()
             zeroReuse[i][j] = true;
             predictions[i][j] = 0;
         }
+        for (int j=0; j<VICTIM_QUEUE_SIZE; j++) {
+            vict_queue[i][j].tag = 0;
+            vict_queue[i][j].pos = 0;
+            vict_queue[i][j].hash1 = 0;
+        }
+
     }
 
     for (int i=0; i < TBLSIZE; i++) {
@@ -31,7 +47,7 @@ void InitReplacementState()
     }
 }
 
-void updateTables(bool reused, int tableInd) {
+/*void updateTables(bool reused, int tableInd) {
 	if (!reused && feat1[tableInd] > (0-MAX_CTR)) {
 		feat1[tableInd]--;
     }
@@ -39,6 +55,13 @@ void updateTables(bool reused, int tableInd) {
     	feat1[tableInd]++;
     }
 
+}*/
+
+void updateTables(bool inc, int tableInd) {
+        if (inc)
+            feat1[tableInd]++;
+        else
+            feat1[tableInd]--;
 }
 
 int getInsertPos(int tableInd) {
@@ -50,6 +73,28 @@ int getInsertPos(int tableInd) {
 		return 0;
 }
 
+bool checkVictQueue (uint32_t set, uint32_t tag) {
+    for (int i = 0; i < VICTIM_QUEUE_SIZE; i++) {
+        if (vict_queue[set][i].tag == tag)
+            return true;
+    }
+    return false;
+}
+
+void updateVictQueue (uint32_t set, uint32_t tag, int hv1) {
+    for (int i = 0; i < VICTIM_QUEUE_SIZE; i++) {
+        if (vict_queue[set][i].pos < (VICTIM_QUEUE_SIZE - 1)) {
+            vict_queue[set][i].pos++;
+        }
+        else {
+            vict_queue[set][i].pos = 0;
+            vict_queue[set][i].tag = tag;
+            vict_queue[set][i].hash1 = hv1;
+        }
+    }
+}
+
+
 // find replacement victim
 // return value should be 0 ~ 15 or 16 (bypass)
 uint32_t GetVictimInSet (uint32_t cpu, uint32_t set, const BLOCK *current_set, uint64_t PC, uint64_t paddr, uint32_t type)
@@ -58,8 +103,23 @@ uint32_t GetVictimInSet (uint32_t cpu, uint32_t set, const BLOCK *current_set, u
     for (int i=0; i<LLC_WAYS; i++)
         if (lru[set][i] == (LLC_WAYS-1))
             lruInd = i;
-            
-    updateTables( zeroReuse[set][lruInd] ,lruInd);
+    
+    uint32_t hashVal = (paddr >> 6) % TBLSIZE;
+    if (zeroReuse[set][lruInd]) {
+        if (predictions[set][lruInd] == 1) {
+            updateTables(false, hv1);
+            updateVictQueue (0, 0, 0);
+        }
+        else {
+            updateVictQueue(set, BLOCK->tag, hv1);
+        }
+    }
+    else {
+        if (predictions[set][lruInd] == -1) {
+            updateTables(true, hv1);
+        }
+    }
+
     return lruInd;
 }
 
