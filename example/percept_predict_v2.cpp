@@ -8,6 +8,7 @@
 #define THRESH 6
 #define VICTIM_QUEUE_SIZE LLC_WAYS/4
 #define PCi_SIZE 3
+#define PUSH_ZEROS 0
 
 uint32_t lru[LLC_SETS][LLC_WAYS];
 bool zeroReuse[LLC_SETS][LLC_WAYS];
@@ -191,10 +192,15 @@ void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t 
         if (zeroReuse[set][way]) {
             if (predictions[set][way] == 1) {
                 updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
-                // updateVictQueue (0, 0, 0, 0, 0);
+                if (PUSH_ZEROS) {
+                    updateVictQueue (0, 0, 0, 0, 0);
+                }
             }
             else if (predictions[set][way] == 0) {
                 updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
+                if (PUSH_ZEROS) {
+                    updateVictQueue (0, 0, 0, 0, 0);
+                }
             }
             else {
                 updateVictQueue(set, physAddr[set][way], hash1[set][way], hash2[set][way], hash3[set][way]);
@@ -203,6 +209,9 @@ void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t 
         // if reused and predicted 0 or -1
         else if (predictions[set][way] == 0 || predictions[set][way] == -1) {
                 updateTables(true, hash1[set][way], hash2[set][way], hash3[set][way]);
+                if (PUSH_ZEROS) {
+                    updateVictQueue (0, 0, 0, 0, 0);
+                }
         }
 
         int victQueueIndex = checkVictQueue(set, paddr >> 6);
