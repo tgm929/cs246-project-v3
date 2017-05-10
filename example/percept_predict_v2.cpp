@@ -5,7 +5,7 @@
 #define LLC_WAYS 16
 #define TBLSIZE 512
 #define MAX_CTR 8
-#define THRESH 4
+#define THRESH 6
 #define VICTIM_QUEUE_SIZE LLC_WAYS/4
 #define PCi_SIZE 3
 
@@ -132,18 +132,6 @@ int checkVictQueue (uint32_t set, uint64_t paddr) {
     return -1;
 }
 
-uint32_t getVictHash1 (uint32_t set, int index) {
-    return vict_queue[set][index].hash1;
-}
-
-uint32_t getVictHash2 (uint32_t set, int index) {
-    return vict_queue[set][index].hash2;
-}
-
-uint32_t getVictHash3 (uint32_t set, int index) {
-    return vict_queue[set][index].hash3;
-}
-
 // insert victim into queue and push other entries down 1
 void updateVictQueue (uint32_t set, uint64_t paddr, int hv1, int hv2, int hv3) {
     for (int i = 0; i < VICTIM_QUEUE_SIZE; i++) {
@@ -178,25 +166,6 @@ uint32_t GetVictimInSet (uint32_t cpu, uint32_t set, const BLOCK *current_set, u
 // called on every cache hit and cache fill
 void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t paddr, uint64_t PC, uint64_t victim_addr, uint32_t type, uint8_t hit)
 {
-    // training and victim queue management
-    // if not reused
-    if (zeroReuse[set][way]) {
-        if (predictions[set][way] == 1) {
-            updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
-            // updateVictQueue (0, 0, 0, 0, 0);
-        }
-        else if (predictions[set][way] == 0) {
-            updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
-        }
-        else {
-            updateVictQueue(set, physAddr[set][way], hash1[set][way], hash2[set][way], hash3[set][way]);
-        }
-    }
-    // if reused and predicted 0 or -1
-    else if (predictions[set][way] == 0 || predictions[set][way] == -1) {
-            updateTables(true, hash1[set][way], hash2[set][way], hash3[set][way]);
-    }
-
     // update PCi
     updatePCi(PC);
     physAddr[set][way] = paddr >> 6;
@@ -217,12 +186,28 @@ void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t 
 	}
         // if new insertion, choose where to insert the new block
     else {
+        // training and victim queue management
+        // if not reused
+        if (zeroReuse[set][way]) {
+            if (predictions[set][way] == 1) {
+                updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
+                // updateVictQueue (0, 0, 0, 0, 0);
+            }
+            else if (predictions[set][way] == 0) {
+                updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
+            }
+            else {
+                updateVictQueue(set, physAddr[set][way], hash1[set][way], hash2[set][way], hash3[set][way]);
+            }
+        }
+        // if reused and predicted 0 or -1
+        else if (predictions[set][way] == 0 || predictions[set][way] == -1) {
+                updateTables(true, hash1[set][way], hash2[set][way], hash3[set][way]);
+        }
+
         int victQueueIndex = checkVictQueue(set, paddr >> 6);
         if (victQueueIndex != -1) {
-            uint32_t vict_hv1 = getVictHash1(set, victQueueIndex);
-            uint32_t vict_hv2 = getVictHash2(set, victQueueIndex);
-            uint32_t vict_hv3 = getVictHash3(set, victQueueIndex);
-            updateTables(true, vict_hv1, vict_hv2, vict_hv3);
+            updateTables(true, vict_queue[set][victQueueIndex].hash1, vict_queue[set][victQueueIndex].hash2, vict_queue[set][victQueueIndex].hash3);
         }
 
         hash1[set][way] = (paddr >> 6) % TBLSIZE;
