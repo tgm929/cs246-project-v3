@@ -92,19 +92,19 @@ uint64_t getXOR_PCi() {
 // train
 void updateTables(bool inc, int index1, int index2, int index3) {
         if (inc) {
-            if (feat1[index] < MAX_CTR)
+            if (feat1[index1] < MAX_CTR)
                 feat1[index1]++;
-            if (feat2[index] < MAX_CTR)
+            if (feat2[index2] < MAX_CTR)
                 feat2[index2]++;
-            if (feat3[index] < MAX_CTR)
+            if (feat3[index3] < MAX_CTR)
                 feat3[index3]++;
         }
         else {
-            if (feat1[index] > 0-MAX_CTR)
+            if (feat1[index1] > 0-MAX_CTR)
                 feat1[index1]--;
-            if (feat2[index] > 0-MAX_CTR)
+            if (feat2[index2] > 0-MAX_CTR)
                 feat2[index2]--;
-            if (feat3[index] > 0-MAX_CTR)
+            if (feat3[index3] > 0-MAX_CTR)
                 feat3[index3]--;
         }
 }
