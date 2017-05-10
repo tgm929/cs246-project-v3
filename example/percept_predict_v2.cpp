@@ -13,6 +13,9 @@ uint32_t lru[LLC_SETS][LLC_WAYS];
 bool zeroReuse[LLC_SETS][LLC_WAYS];
 int32_t predictions[LLC_SETS][LLC_WAYS];
 uint64_t physAddr[LLC_SETS][LLC_WAYS];
+uint32_t hash1[LLC_SETS][LLC_WAYS];
+uint32_t hash2[LLC_SETS][LLC_WAYS];
+uint32_t hash3[LLC_SETS][LLC_WAYS];
 int feat1[TBLSIZE];
 int feat2[TBLSIZE];
 int feat3[TBLSIZE];
@@ -164,41 +167,36 @@ void updateVictQueue (uint32_t set, uint64_t paddr, int hv1, int hv2, int hv3) {
 uint32_t GetVictimInSet (uint32_t cpu, uint32_t set, const BLOCK *current_set, uint64_t PC, uint64_t paddr, uint32_t type)
 {
     // find victim
-    uint32_t lruInd = 0;
     for (int i=0; i<LLC_WAYS; i++)
         if (lru[set][i] == (LLC_WAYS-1))
-            lruInd = i;
-    
-    // hash functions
-    uint32_t hv1 = (paddr >> 6) % TBLSIZE;
-    uint32_t hv2 = (PC >> 2) % TBLSIZE;
-    uint32_t hv3 = (getXOR_PCi() >> 2) % TBLSIZE;
+            return i;
 
-    // training and victim queue management
-    // if not reused
-    if (zeroReuse[set][lruInd]) {
-        if (predictions[set][lruInd] == 1) {
-            updateTables(false, hv1, hv2, hv3);
-            // updateVictQueue (0, 0, 0, 0, 0);
-        }
-        else if (predictions[set][lruInd] == 0) {
-            updateTables(false, hv1, hv2, hv3);
-        }
-        else {
-            updateVictQueue(set, physAddr[set][lruInd], hv1, hv2, hv3);
-        }
-    }
-    // if reused and predicted 0 or -1
-    else if (predictions[set][lruInd] == 0 || predictions[set][lruInd] == -1) {
-            updateTables(true, hv1, hv2, hv3);
-    }
-
-    return lruInd;
+    // should not reach here
+    return 0;
 }
 
 // called on every cache hit and cache fill
 void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t paddr, uint64_t PC, uint64_t victim_addr, uint32_t type, uint8_t hit)
 {
+    // training and victim queue management
+    // if not reused
+    if (zeroReuse[set][way]) {
+        if (predictions[set][way] == 1) {
+            updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
+            // updateVictQueue (0, 0, 0, 0, 0);
+        }
+        else if (predictions[set][way] == 0) {
+            updateTables(false, hash1[set][way], hash2[set][way], hash3[set][way]);
+        }
+        else {
+            updateVictQueue(set, physAddr[set][way], hash1[set][way], hash2[set][way], hash3[set][way]);
+        }
+    }
+    // if reused and predicted 0 or -1
+    else if (predictions[set][way] == 0 || predictions[set][way] == -1) {
+            updateTables(true, hash1[set][way], hash2[set][way], hash3[set][way]);
+    }
+
     // update PCi
     updatePCi(PC);
     physAddr[set][way] = paddr >> 6;
@@ -227,10 +225,11 @@ void UpdateReplacementState (uint32_t cpu, uint32_t set, uint32_t way, uint64_t 
             updateTables(true, vict_hv1, vict_hv2, vict_hv3);
         }
 
-        uint32_t hv1 = (paddr >> 6) % TBLSIZE;
-        uint32_t hv2 = (PC >> 2) % TBLSIZE;
-        uint32_t hv3 = (getXOR_PCi() >> 2) % TBLSIZE;
-        int prediction = getInsertPos(hv1, hv2, hv3);
+        hash1[set][way] = (paddr >> 6) % TBLSIZE;
+        hash2[set][way] = (PC >> 2) % TBLSIZE;
+        hash3[set][way] = (getXOR_PCi() >> 2) % TBLSIZE;
+
+        int prediction = getInsertPos(hash1[set][way], hash2[set][way], hash3[set][way]);
         predictions[set][way] = prediction;
         uint32_t insertPos = 0;
         if (prediction == -1)
