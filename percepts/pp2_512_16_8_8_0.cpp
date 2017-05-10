@@ -4,9 +4,9 @@
 #define LLC_SETS NUM_CORE*2048
 #define LLC_WAYS 16
 #define TBLSIZE 512
-#define MAX_CTR 8
+#define MAX_CTR 16
 #define THRESH 8
-#define VICTIM_QUEUE_SIZE LLC_WAYS/4
+#define VICTIM_QUEUE_SIZE LLC_WAYS/2
 #define PCi_SIZE 3
 #define PUSH_ZEROS 0
 
