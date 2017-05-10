@@ -45,7 +45,7 @@ void InitReplacementState()
             predictions[i][j] = 0;
         }
         for (int j=0; j<VICTIM_QUEUE_SIZE; j++) {
-            vict_queue[i][j].tag = 0;
+            vict_queue[i][j].physAddr = 0;
             vict_queue[i][j].pos = 0;
             vict_queue[i][j].hash1 = 0;
             vict_queue[i][j].hash2 = 0;
