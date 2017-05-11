@@ -3,12 +3,12 @@
 #define NUM_CORE 1
 #define LLC_SETS NUM_CORE*2048
 #define LLC_WAYS 16
-#define TBLSIZE 1024
+#define TBLSIZE 256
 #define MAX_CTR 8
 #define THRESH 8
-#define VICTIM_QUEUE_SIZE LLC_WAYS/2
+#define VICTIM_QUEUE_SIZE LLC_WAYS/4
 #define PCi_SIZE 3
-#define PUSH_ZEROS 0
+#define PUSH_ZEROS 1
 
 uint32_t lru[LLC_SETS][LLC_WAYS];
 bool zeroReuse[LLC_SETS][LLC_WAYS];
